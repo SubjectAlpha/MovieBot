@@ -63,24 +63,25 @@ def getMovieDetails(url):
 
   return data
 
-
-
-@bot.command("add", help = "Usage: $add title IMDB link")
+@bot.command("add", help = "Usage: $add IMDB link")
 async def add_to_list(context):
   create_if_not_exists_queue_file(context.guild.id)
 
   link = context.message.content.split(" ")[1]
 
-  try:
-    movie_queue = get_movie_queue(context.guild.id)
+  if validators.url(link):
+    try:
+      movie_queue = get_movie_queue(context.guild.id)
 
-    with io.open(f"{context.guild.id}_queue.json", "w+", encoding="utf8") as queue:
-      queue_item = QueueItem(context.author.id, link)
-      movie_queue.movies.append(queue_item)
-      json.dump(movie_queue, queue, cls=QueueEncoder)
-    await context.reply(link + " added to queue")
-  except FileNotFoundError:
-    print("File not found!")
+      with io.open(f"{context.guild.id}_queue.json", "w+", encoding="utf8") as queue:
+        queue_item = QueueItem(context.author.id, link)
+        movie_queue.movies.append(queue_item)
+        json.dump(movie_queue, queue, cls=QueueEncoder)
+      await context.reply(link + " added to queue")
+    except FileNotFoundError:
+      print("File not found!")
+  else:
+    context.reply("You must submit an IMDB link")
 
 @bot.command("list")
 async def get_movie_list_message(context):
@@ -90,7 +91,7 @@ async def get_movie_list_message(context):
   for m in current_queue.movies:
     details = getMovieDetails(m.url)
     
-    queue_msg += f"Name: {details['name']} Rating: {details['ratingValue']} URL: {m.url} Position: {str(pos)}\n"
+    queue_msg += f"{details['title']} Rating: {details['ratingValue']} Position: {str(pos)}\n"
     pos += 1
   await context.reply("Current Queue:\n" + queue_msg)
 
@@ -99,14 +100,19 @@ async def pick_movie(context):
   current_queue = get_movie_queue(context.guild.id)
   pick = random.randint(0, len(current_queue.movies)-1)
 
-  await context.reply("You should watch: " + current_queue.movies[pick].url)
+  details = getMovieDetails(current_queue.movies[pick].url)
 
-@bot.command(name="remove")
+  await context.reply(f"You should watch: {details['title']} Rating: {details['ratingValue']}")
+
+@bot.command(name="remove", help="Insert the position number to remove a movie from the queue")
 async def remove_movie(context):
-  movie_name = context.message.content.split(" ")[1]
+  movie_position = int(context.message.content.split(" ")[1])
   current_queue = get_movie_queue(context.guild.id)
-
-  await context.reply("Ability to remove from queue coming soon")
+  current_movie = current_queue.movies[movie_position - 1]
+  current_queue.movies.pop(movie_position - 1)
+  with io.open(f"{context.guild.id}_queue.json", "w+", encoding="utf8") as queue:
+    json.dump(current_queue, queue, cls=QueueEncoder)
+  await context.reply(f"Removed {current_movie.url}")
 
 @bot.event
 async def on_ready():
