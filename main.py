@@ -1,8 +1,8 @@
-import discord, os, random, validators, json, io, requests
+import os, random, validators, json, io, re
 from discord.ext.commands import Bot
 from json import JSONEncoder
 from types import SimpleNamespace
-from bs4 import BeautifulSoup
+from imdb import IMDb
 
 #invite link https://discord.com/oauth2/authorize?client_id=858789129848225792&permissions=27712&scope=bot
 
@@ -41,25 +41,14 @@ def get_movie_queue(server_id):
 
 def getMovieDetails(url):
   data = {}
-  r = requests.get(url=url)
-  # Create a BeautifulSoup object
-  soup = BeautifulSoup(r.text, 'html.parser')
+  ia = IMDb()
 
-  #page title
-  title = soup.find('title')
-  data["title"] = title.string
-
-  # rating
-  ratingValue = soup.find("span", {"itemprop" : "ratingValue"})
-  data["ratingValue"] = ratingValue.string
-
-  # no of rating given
-  ratingCount = soup.find("span", {"itemprop" : "ratingCount"})
-  data["ratingCount"] = ratingCount.string
-
-  # name
-  titleName = soup.find("div",{'class':'titleBar'}).find("h1")
-  data["name"] = titleName.contents[0].replace(u'\xa0', u'')
+  if validators.url(url):
+    url = url.split("/")
+    temp = re.compile("([a-zA-Z]+)([0-9]+)")
+    res = temp.match(url[4]).groups()
+    mv = ia.get_movie(res[1])
+    return mv
 
   return data
 
@@ -81,7 +70,7 @@ async def add_to_list(context):
     except FileNotFoundError:
       print("File not found!")
   else:
-    context.reply("You must submit an IMDB link")
+    await context.reply("You must submit an IMDB link")
 
 @bot.command("list")
 async def get_movie_list_message(context):
@@ -91,7 +80,7 @@ async def get_movie_list_message(context):
   for m in current_queue.movies:
     details = getMovieDetails(m.url)
     
-    queue_msg += f"{details['title']} Rating: {details['ratingValue']} Position: {str(pos)}\n"
+    queue_msg += f"{details['title']} - {details['rating']}/10 - Position: {str(pos)}\n"
     pos += 1
   await context.reply("Current Queue:\n" + queue_msg)
 
@@ -102,7 +91,7 @@ async def pick_movie(context):
 
   details = getMovieDetails(current_queue.movies[pick].url)
 
-  await context.reply(f"You should watch: {details['title']} Rating: {details['ratingValue']}")
+  await context.reply(f"You should watch: {details['title']} Rating: {details['rating']}")
 
 @bot.command(name="remove", help="Insert the position number to remove a movie from the queue")
 async def remove_movie(context):
