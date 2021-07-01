@@ -26,19 +26,19 @@ bot = Bot(command_prefix='$')
 def create_if_not_exists_queue_file(server_id):
   path = f"{server_id}_queue.json"
   if os.path.isfile(path) and os.access(path, os.R_OK):
-      # checks if file exists
-      print ("File exists and is readable")
+    # checks if file exists
+    print ("File exists and is readable")
   else:
-      print ("Either file is missing or is not readable, creating file...")
-      with io.open(os.path.join(path), 'w') as queue:
-          new_queue = MovieQueue(server_id)
-          json.dump(new_queue, queue, cls=QueueEncoder)
+    print ("Either file is missing or is not readable, creating file...")
+    with io.open(os.path.join(path), 'w') as queue:
+      new_queue = MovieQueue(server_id)
+      json.dump(new_queue, queue, cls=QueueEncoder)
 
 #Return a list movie queue objects based on the server its called in
 def get_movie_queue(server_id):
   movie_queue = ""
   with io.open(f"{server_id}_queue.json", "r+", encoding="utf8") as queue:
-      movie_queue = json.load(queue, object_hook=lambda d: SimpleNamespace(**d))
+    movie_queue = json.load(queue, object_hook=lambda d: SimpleNamespace(**d))
   return movie_queue
 
 def get_movie_details(url):
@@ -74,9 +74,9 @@ async def add_to_list(context):
       except FileNotFoundError:
         await context.reply("An unrecoverable error occurred")
     else:
-      await context.reply("You must submit an IMDB link")
+      await context.reply("You must submit an IMDb link")
   else:
-    await context.reply("You must submit an IMDB link")
+    await context.reply("You must submit an IMDb link")
 
 #List all movies in current queue, and get info from IMDb about them.
 @bot.command("list")
