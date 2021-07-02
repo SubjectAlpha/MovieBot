@@ -3,6 +3,7 @@ from discord.ext.commands import Bot
 from json import JSONEncoder
 from types import SimpleNamespace
 from imdb import IMDb
+from datetime import datetime
 
 #invite link https://discord.com/oauth2/authorize?client_id=858789129848225792&permissions=27712&scope=bot
 
@@ -22,14 +23,19 @@ class QueueEncoder(JSONEncoder):
 
 bot = Bot(command_prefix='$')
 
+def print_timestamp(msg, server_id = "unknown"):
+  now = datetime.now()
+  now_formatted = now.strftime("%d/%m/%Y %H:%M:%S")
+  print(f"[{now_formatted}] {msg} [{server_id}]")
+
 #Check to see if save file exists for the server, if it doesn't it creates one.
 def create_if_not_exists_queue_file(server_id):
   path = f"{server_id}_queue.json"
   if os.path.isfile(path) and os.access(path, os.R_OK):
     # checks if file exists
-    print ("File exists and is readable")
+    print_timestamp("File exists and is readable", server_id)
   else:
-    print ("Either file is missing or is not readable, creating file...")
+    print_timestamp("Either file is missing or is not readable, creating file...", server_id)
     with io.open(os.path.join(path), 'w') as queue:
       new_queue = MovieQueue(server_id)
       json.dump(new_queue, queue, cls=QueueEncoder)
@@ -115,6 +121,6 @@ async def remove_movie(context):
 #Status message to know when the bot is ready.
 @bot.event
 async def on_ready():
-  print(f'We have logged in as {bot.user}')
+  print_timestamp(f'We have logged in as {bot.user}')
   
 bot.run(os.environ['BOT_TOKEN'])
