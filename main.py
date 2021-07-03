@@ -62,10 +62,8 @@ def get_movie_details(url):
 
 #Add a movie based on IMDb link
 @bot.command("add", help = "Usage: $add IMDB link")
-async def add_to_list(context):
+async def add_to_list(context, link):
   create_if_not_exists_queue_file(context.guild.id)
-
-  link = context.message.content.split(" ")[1]
 
   if validators.url(link):
     imdb_check = re.compile("^https?:\/\/+([^:/]+\.)?imdb\.com\/title\/([-a-zA-Z0-9_\\+~#?&//=]*)")
@@ -90,6 +88,7 @@ async def get_movie_list_message(context):
   current_queue = get_movie_queue(context.guild.id)
   queue_msg = ""
   pos = 1
+  await context.message.add_reaction("\N{THUMBS UP SIGN}")
   for m in current_queue.movies:
     details = get_movie_details(m.url)
     
@@ -98,7 +97,7 @@ async def get_movie_list_message(context):
   await context.reply("Current Queue:\n" + queue_msg)
 
 #Psuedo randomly choose a movie from the saved list.
-@bot.command(name="pick")
+@bot.command(name="random", help="Randomly choose a movie from the queue to nominate")
 async def pick_movie(context):
   current_queue = get_movie_queue(context.guild.id)
   pick = random.randint(0, len(current_queue.movies)-1)
@@ -109,14 +108,29 @@ async def pick_movie(context):
 
 #Remove a movie from the list based on its current queue position.
 @bot.command(name="remove", help="Insert the position number to remove a movie from the queue")
-async def remove_movie(context):
-  movie_position = int(context.message.content.split(" ")[1])
+async def remove_movie(context, movie_position):
+  movie_position = int(movie_position)
   current_queue = get_movie_queue(context.guild.id)
   current_queue.movies.pop(movie_position - 1)
   with io.open(f"{context.guild.id}_queue.json", "w+", encoding="utf8") as queue:
     json.dump(current_queue, queue, cls=QueueEncoder)
 
   await context.message.add_reaction("\N{THUMBS UP SIGN}")
+
+@bot.command(name="nominate", help="$nominate queue_position to nominate a movie of your choice.")
+async def nominate_movie(context, movie_position):
+  movie_position = int(movie_position)
+  current_queue = get_movie_queue(context.guild.id)
+  details = get_movie_details(current_queue.movies[movie_position - 1].url)
+
+  await context.reply(f"{details['title']} Rating: {details['rating']} has been nominated. Please vote with :thumbsup: or :thumbsdown:")
+
+@bot.command(name="link", help="Get the link for the movie at that position in queue.")
+async def get_link(context, movie_position):
+  movie_position = int(movie_position)
+  current_queue = get_movie_queue(context.guild.id)
+
+  await context.reply(f"{current_queue.movies[movie_position - 1].url}")
 
 #Status message to know when the bot is ready.
 @bot.event
