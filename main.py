@@ -70,11 +70,14 @@ async def add_to_list(context, link):
     if imdb_check.match(link):
       try:
         movie_queue = get_movie_queue(context.guild.id)
-        with io.open(f"{context.guild.id}_queue.json", "w+", encoding="utf8") as queue:
-          queue_item = QueueItem(context.author.id, link)
-          movie_queue.movies.append(queue_item)
-          json.dump(movie_queue, queue, cls=QueueEncoder)
-        await context.message.add_reaction("\N{THUMBS UP SIGN}")
+        if not any(x.url == link for x in movie_queue.movies):
+          with io.open(f"{context.guild.id}_queue.json", "w+", encoding="utf8") as queue:
+            queue_item = QueueItem(context.author.id, link)
+            movie_queue.movies.append(queue_item)
+            json.dump(movie_queue, queue, cls=QueueEncoder)
+          await context.message.add_reaction("\N{THUMBS UP SIGN}")
+        else:
+          await context.reply("That movie is already in the queue")
       except FileNotFoundError:
         await context.reply("An unrecoverable error occurred")
     else:
