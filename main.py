@@ -1,52 +1,39 @@
-import os, random, validators, json, io, re
+import discord, os, random, validators, re
 from discord.ext.commands import Bot
-from json import JSONEncoder
-from types import SimpleNamespace
 from imdb import IMDb
 from datetime import datetime
 
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
 #invite link https://discord.com/oauth2/authorize?client_id=858789129848225792&permissions=27712&scope=bot
-
-class MovieQueue:
-  def __init__(self, server_id):
-    self.server_id = server_id
-    self.movies = []
-
-class QueueItem:
-  def __init__(self, uid, link):
-    self.uid = uid
-    self.url = link
-
-class QueueEncoder(JSONEncoder):
-  def default(self, o):
-    return o.__dict__
 
 bot = Bot(command_prefix='$')
 
-def print_timestamp(msg, server_id = "unknown"):
-  now = datetime.now()
-  now_formatted = now.strftime("%d/%m/%Y %H:%M:%S")
-  print(f"[{now_formatted}] {msg} [{server_id}]")
+cred = credentials.Certificate("moviequeue-e93f6-5d955926d1a9.json")
+firebase_admin.initialize_app(cred)
 
-#Check to see if save file exists for the server, if it doesn't it creates one.
-def create_if_not_exists_queue_file(server_id):
-  path = f"{server_id}_queue.json"
-  if os.path.isfile(path) and os.access(path, os.R_OK):
-    # checks if file exists
-    print_timestamp("File exists and is readable", server_id)
-  else:
-    print_timestamp("Either file is missing or is not readable, creating file...", server_id)
-    with io.open(os.path.join(path), 'w') as queue:
-      new_queue = MovieQueue(server_id)
-      json.dump(new_queue, queue, cls=QueueEncoder)
+db = firestore.client()
+
+#Pretty console messages when required
+def pretty_print(msg, server_id = "unknown"):
+  print(f"[{get_nowf()}] {msg} [{server_id}]")
+
+#return current date time formatted
+def get_nowf(fmt="%d/%m/%Y %H:%M:%S"):
+  now = datetime.now()
+  return now.strftime(fmt)
 
 #Return a list movie queue objects based on the server its called in
 def get_movie_queue(server_id):
-  movie_queue = ""
-  with io.open(f"{server_id}_queue.json", "r+", encoding="utf8") as queue:
-    movie_queue = json.load(queue, object_hook=lambda d: SimpleNamespace(**d))
-  return movie_queue
+  queue = []
+  docs = db.collection("MovieQueue").where("server_id", "==", server_id).stream()
+  for doc in docs:
+    queue.append(doc.to_dict())
+  return queue
 
+#Use IMDb library to get information on the movie requested
 def get_movie_details(url):
   data = {}
   ia = IMDb()
@@ -61,25 +48,29 @@ def get_movie_details(url):
   return data
 
 #Add a movie based on IMDb link
-@bot.command("add", help = "Usage: $add IMDB link")
+@bot.command("add", help = "$add IMDb_link to add a movie to this servers queue.")
 async def add_to_list(context, link):
-  create_if_not_exists_queue_file(context.guild.id)
-
   if validators.url(link):
     imdb_check = re.compile("^https?:\/\/+([^:/]+\.)?imdb\.com\/title\/([-a-zA-Z0-9_\\+~#?&//=]*)")
     if imdb_check.match(link):
-      try:
-        movie_queue = get_movie_queue(context.guild.id)
-        if not any(x.url == link for x in movie_queue.movies):
-          with io.open(f"{context.guild.id}_queue.json", "w+", encoding="utf8") as queue:
-            queue_item = QueueItem(context.author.id, link)
-            movie_queue.movies.append(queue_item)
-            json.dump(movie_queue, queue, cls=QueueEncoder)
-          await context.message.add_reaction("\N{THUMBS UP SIGN}")
-        else:
-          await context.reply("That movie is already in the queue")
-      except FileNotFoundError:
-        await context.reply("An unrecoverable error occurred")
+      imdb_id = link.split("/")[4]
+      details = get_movie_details(link)
+      
+      if not any(x['imdb_id'] == imdb_id for x in get_movie_queue(context.guild.id)):
+        doc_ref = db.collection("MovieQueue").document()
+        doc_ref.set({
+          "id": doc_ref.id,
+          "imdb_id": imdb_id,
+          "server_id": context.guild.id,
+          "url": link,
+          "added_by": context.message.author.id,
+          "date_added": get_nowf(),
+          "title": details['title'],
+          "rating": f"{details['rating']}/10"
+        })
+        await context.message.add_reaction("\N{THUMBS UP SIGN}")
+      else:
+        await context.reply("This movie is already on the queue")
     else:
       await context.reply("You must submit an IMDb link")
   else:
@@ -92,52 +83,58 @@ async def get_movie_list_message(context):
   queue_msg = ""
   pos = 1
   await context.message.add_reaction("\N{THUMBS UP SIGN}")
-  for m in current_queue.movies:
-    details = get_movie_details(m.url)
-    
-    queue_msg += f"{details['title']} - {details['rating']}/10 - Position: {str(pos)}\n"
+  for doc in current_queue:
+    queue_msg += f"{doc['title']} - {doc['rating']} - <@{doc['added_by']}> - Position: {str(pos)}\n"
     pos += 1
   await context.reply("Current Queue:\n" + queue_msg)
 
 #Psuedo randomly choose a movie from the saved list.
-@bot.command(name="random", help="Randomly choose a movie from the queue to nominate")
+@bot.command(name="random", help="$random to randomly choose a movie from this server's queue to nominate")
 async def pick_movie(context):
   current_queue = get_movie_queue(context.guild.id)
-  pick = random.randint(0, len(current_queue.movies)-1)
+  pick = random.randint(0, len(current_queue)-1)
+  movie = current_queue[pick]
 
-  details = get_movie_details(current_queue.movies[pick].url)
-
-  await context.reply(f"You should watch: {details['title']} Rating: {details['rating']}")
+  await context.reply(f"You should watch: {movie['title']} Rating: {movie['rating']}")
 
 #Remove a movie from the list based on its current queue position.
-@bot.command(name="remove", help="Insert the position number to remove a movie from the queue")
+@bot.command(name="remove", help="$remove queue_position to remove a movie from the queue")
 async def remove_movie(context, movie_position):
   movie_position = int(movie_position)
   current_queue = get_movie_queue(context.guild.id)
-  current_queue.movies.pop(movie_position - 1)
-  with io.open(f"{context.guild.id}_queue.json", "w+", encoding="utf8") as queue:
-    json.dump(current_queue, queue, cls=QueueEncoder)
+  db.collection("MovieQueue").document(current_queue[movie_position - 1]['id']).delete()
 
   await context.message.add_reaction("\N{THUMBS UP SIGN}")
 
+#Nominate a movie for watching
 @bot.command(name="nominate", help="$nominate queue_position to nominate a movie of your choice.")
 async def nominate_movie(context, movie_position):
   movie_position = int(movie_position)
   current_queue = get_movie_queue(context.guild.id)
-  details = get_movie_details(current_queue.movies[movie_position - 1].url)
+  movie = current_queue[movie_position - 1]
 
-  await context.reply(f"{details['title']} Rating: {details['rating']} has been nominated. Please vote with :thumbsup: or :thumbsdown:")
+  await context.reply(f"{movie['title']} Rating: {movie['rating']} has been nominated. Please vote with :thumbsup: or :thumbsdown:")
 
-@bot.command(name="link", help="Get the link for the movie at that position in queue.")
+#Get the link for a selected movie
+@bot.command(name="link", help="$link queue_position to get the link for the movie at that position in queue.")
 async def get_link(context, movie_position):
   movie_position = int(movie_position)
   current_queue = get_movie_queue(context.guild.id)
+  movie = current_queue[movie_position - 1]
+  await context.reply(f"{movie['url']}")
 
-  await context.reply(f"{current_queue.movies[movie_position - 1].url}")
+#Clear channel messages
+@bot.command(name="clear")
+async def clear_messages(context):
+  role = discord.utils.find(lambda r: r.name == 'Mods' or r.name == "Admins", context.guild.roles)
+  if role in context.message.author.roles:
+    await context.channel.purge(limit=120)
+  else:
+    await context.reply("You must be in group 'Mods' or 'Admins'")
 
 #Status message to know when the bot is ready.
 @bot.event
 async def on_ready():
-  print_timestamp(f'We have logged in as {bot.user}')
+  pretty_print(f'We have logged in as {bot.user}')
   
 bot.run(os.environ['BOT_TOKEN'])

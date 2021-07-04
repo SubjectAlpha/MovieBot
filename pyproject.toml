@@ -10,6 +10,8 @@ discord = "^1.7.3"
 validators = "^0.18.2"
 bs4 = "^0.0.1"
 imdb-cli-tool = "^1.0.1"
+boto3 = "^1.17.105"
+firebase-admin = "^5.0.1"
 
 [tool.poetry.dev-dependencies]
 
