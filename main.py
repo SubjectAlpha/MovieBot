@@ -11,7 +11,7 @@ from firebase_admin import firestore
 
 bot = Bot(command_prefix='$')
 
-cred = credentials.Certificate("moviequeue-e93f6-5d955926d1a9.json")
+cred = credentials.Certificate("fbase_auth.json")
 firebase_admin.initialize_app(cred)
 
 db = firestore.client()
