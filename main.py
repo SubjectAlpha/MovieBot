@@ -18,7 +18,7 @@ db = firestore.client()
 
 #Pretty console messages when required
 def pretty_print(msg, server_id = "unknown"):
-  print(f"[{get_nowf()}] {msg} [{server_id}]")
+  print(f"[{get_nowf()}] {msg} [{server_id}]\n")
 
 #return current date time formatted
 def get_nowf(fmt="%d/%m/%Y %H:%M:%S"):
@@ -31,6 +31,7 @@ def get_movie_queue(server_id):
   docs = db.collection("MovieQueue").where("server_id", "==", server_id).stream()
   for doc in docs:
     queue.append(doc.to_dict())
+  queue.sort(key=lambda r: r["date_added"])
   return queue
 
 #Use IMDb library to get information on the movie requested
@@ -83,8 +84,9 @@ async def get_movie_list_message(context):
   queue_msg = ""
   pos = 1
   await context.message.add_reaction("\N{THUMBS UP SIGN}")
+  
   for doc in current_queue:
-    queue_msg += f"{doc['title']} - {doc['rating']} - <@{doc['added_by']}> - Position: {str(pos)}\n"
+    queue_msg += f"{doc['title']} - {doc['rating']} - Position: {str(pos)}\n"
     pos += 1
   await context.reply("Current Queue:\n" + queue_msg)
 
@@ -124,7 +126,7 @@ async def get_link(context, movie_position):
   await context.reply(f"{movie['url']}")
 
 #Clear channel messages
-@bot.command(name="clear")
+@bot.command(name="cls")
 async def clear_messages(context):
   role = discord.utils.find(lambda r: r.name == 'Mods' or r.name == "Admins", context.guild.roles)
   if role in context.message.author.roles:
