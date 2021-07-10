@@ -78,17 +78,21 @@ async def add_to_list(context, link):
     await context.reply("You must submit an IMDb link")
 
 #List all movies in current queue, and get info from IMDb about them.
-@bot.command("list")
-async def get_movie_list_message(context):
+@bot.command("list", help="$list count to display the list up to that count default=25")
+async def get_movie_list_message(context, cnt=25):
   current_queue = get_movie_queue(context.guild.id)
   queue_msg = ""
   pos = 1
   await context.message.add_reaction("\N{THUMBS UP SIGN}")
   
-  for doc in current_queue:
+  for doc in current_queue[:cnt]:
     queue_msg += f"{doc['title']} - {doc['rating']} - Position: {str(pos)}\n"
     pos += 1
-  await context.reply("Current Queue:\n" + queue_msg)
+  try:
+    await context.reply("Current Queue:\n" + queue_msg)
+  except discord.errors.HTTPException:
+    await context.reply(queue_msg[:2000])
+    await context.reply(queue_msg[2000:])
 
 #Psuedo randomly choose a movie from the saved list.
 @bot.command(name="random", help="$random to randomly choose a movie from this server's queue to nominate")
@@ -102,9 +106,13 @@ async def pick_movie(context):
 #Remove a movie from the list based on its current queue position.
 @bot.command(name="remove", help="$remove queue_position to remove a movie from the queue")
 async def remove_movie(context, movie_position):
+  role = discord.utils.find(lambda r: r.name == 'Mods' or r.name == "Admins", context.guild.roles)
   movie_position = int(movie_position)
   current_queue = get_movie_queue(context.guild.id)
-  db.collection("MovieQueue").document(current_queue[movie_position - 1]['id']).delete()
+  if current_queue[movie_position - 1]["added_by"] == context.message.author.id or role in context.message.author.roles:
+    db.collection("MovieQueue").document(current_queue[movie_position - 1]['id']).delete()
+  else:
+    await context.reply("You can only remove movies you've added")
 
   await context.message.add_reaction("\N{THUMBS UP SIGN}")
 
