@@ -91,8 +91,8 @@ async def get_movie_list_message(context, cnt=25):
   try:
     await context.reply("Current Queue:\n" + queue_msg)
   except discord.errors.HTTPException:
-    await context.reply(queue_msg[:2000])
-    await context.reply(queue_msg[2000:])
+    for i in range(0, len(queue_msg), 2000):
+      await context.reply(queue_msg[i:i+2000])
 
 #Psuedo randomly choose a movie from the saved list.
 @bot.command(name="random", help="$random to randomly choose a movie from this server's queue to nominate")
