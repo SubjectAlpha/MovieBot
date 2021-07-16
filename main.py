@@ -28,7 +28,7 @@ async def add_to_list(context, link):
   if helpers.validate_imdb_url(link):
     imdb_id = link.split("/")[4]
     details = helpers.get_movie_details(link)
-    current_queue = helpers.get_movie_queue(db, context.guild.id, True)
+    current_queue = helpers.get_movie_queue(db, context.guild.id)
     if not any(x.imdb_id == imdb_id for x in current_queue.Movies):
       doc_ref = db.collection("MovieQueue").document()
       doc_ref.set(queuebot.Movie(doc_ref.id, imdb_id, context.guild.id, context.message.author.id, link, helpers.get_nowf(),details["title"], f"{details['rating']}/10", False, 0).__dict__)
@@ -41,7 +41,7 @@ async def add_to_list(context, link):
 #List all movies in current queue, and get info from IMDb about them.
 @bot.command("list", help="$list count to display the list up to that count default=25")
 async def get_movie_list_message(context, cnt=25):
-  current_queue = helpers.get_movie_queue(db, context.guild.id)
+  current_queue = helpers.get_movie_queue(db, context.guild.id, False)
   queue_msg = ""
   pos = 1
   await context.message.add_reaction("👌")
@@ -54,10 +54,12 @@ async def get_movie_list_message(context, cnt=25):
 
 @bot.command("listall")
 async def get_all_movies_message(context):
-  current_queue = helpers.get_movie_queue(db, context.guild.id, True)
+  current_queue = helpers.get_movie_queue(db, context.guild.id)
   queue_msg = ""
   pos = 1
   await context.message.add_reaction("👌")
+
+  current_queue.Movies.sort(key = lambda x: x.viewed, reverse=False)
 
   for movie in current_queue.Movies:
     queue_msg += f"{movie.title} - {movie.rating} - Viewed: {movie.viewed} - Position: {str(pos)}\n"
@@ -68,19 +70,30 @@ async def get_all_movies_message(context):
 #Psuedo randomly choose a movie from the saved list.
 @bot.command(name="random", help="$random to randomly choose a movie from this server's queue to nominate")
 async def pick_random(context):
-  current_queue = helpers.get_movie_queue(db, context.guild.id)
+  current_queue = helpers.get_movie_queue(db, context.guild.id, False)
   pick = random.randint(0, len(current_queue)-1)
   movie = current_queue[pick]
 
   await context.reply(f"You should watch: {movie.title} Rating: {movie.rating}")
 
 #Remove a movie from the list based on its current queue position.
-@bot.command(name="remove", help="$remove queue_position to remove a movie from the queue")
-async def remove_movie(context, movie_position):
+@bot.command(name="watched", help="$watched queue_position to mark a movie as watched")
+async def mark_movie(context, movie_position):
   movie_position = int(movie_position)
   current_queue = helpers.get_movie_queue(db, context.guild.id)
   if current_queue.Movies[movie_position - 1].added_by == context.message.author.id or helpers.check_permission(context):
     db.collection("MovieQueue").document(current_queue.Movies[movie_position - 1].id).set({'viewed': True}, merge=True)
+
+    await context.message.add_reaction("👌")
+  else:
+    await context.reply("You can only remove movies you've added")
+
+@bot.command(name="remove")
+async def remove_movie(context, movie_position):
+  movie_position = int(movie_position)
+  current_queue = helpers.get_movie_queue(db, context.guild.id, True)
+  if current_queue.Movies[movie_position - 1].added_by == context.message.author.id or helpers.check_permission(context):
+    db.collection("MovieQueue").document(current_queue.Movies[movie_position - 1].id).delete()
 
     await context.message.add_reaction("👌")
   else:
@@ -106,7 +119,7 @@ async def get_link(context, movie_position):
 
 @bot.command(name="top")
 async def list_top_rated(context, amount=10):
-  current_queue = helpers.get_movie_queue(db, context.guild.id, True)
+  current_queue = helpers.get_movie_queue(db, context.guild.id)
   await context.message.add_reaction("👌")
   list_msg = ""
   movies = []

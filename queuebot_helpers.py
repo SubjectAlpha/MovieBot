@@ -12,7 +12,7 @@ def get_nowf(fmt="%d/%m/%Y %H:%M:%S"):
   return now.strftime(fmt)
 
 #Return a list movie queue objects based on the server its called in
-def get_movie_queue(db_ref, server_id, viewed=False):
+def get_movie_queue(db_ref, server_id, viewed=True):
   docs = db_ref.collection("MovieQueue").where("server_id", "==", server_id)
   if not viewed:
     docs = docs.where("viewed", "==", False).stream()
