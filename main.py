@@ -142,7 +142,7 @@ async def clear_messages(context):
   if helpers.check_permission(context):
     await context.channel.purge(limit=120)
   else:
-    await context.reply("You must be in group 'Mods' or 'Admins'")
+    await context.reply("You must be in group 'Mods' or 'Admins' or 'Curator'")
 
 '''
 Keep this for any new db changes

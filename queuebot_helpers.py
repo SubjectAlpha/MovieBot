@@ -80,7 +80,7 @@ def validate_imdb_url(url):
     return imdb_check.match(url)
 
 def check_permission(context):
-  role = discord.utils.find(lambda r: r.name == 'Mods' or r.name == "Admins", context.guild.roles)
+  role = discord.utils.find(lambda r: r.name == 'Mods' or r.name == "Admins" or r.name == "Curator", context.guild.roles)
   if role in context.message.author.roles:
     return True
   return False
