@@ -31,7 +31,7 @@ async def add_to_list(context, link):
     current_queue = helpers.get_movie_queue(db, context.guild.id)
     if not any(x.imdb_id == imdb_id for x in current_queue.Movies):
       doc_ref = db.collection("MovieQueue").document()
-      doc_ref.set(queuebot.Movie(doc_ref.id, imdb_id, context.guild.id, context.message.author.id, link, helpers.get_nowf(),details["title"], f"{details['rating']}/10", False, 0).__dict__)
+      doc_ref.set(queuebot.Movie(doc_ref.id, imdb_id, context.guild.id, context.message.author.id, link, helpers.get_nowf(),details["title"], f"{details['rating']}/10", False).__dict__)
       await context.message.add_reaction("👌")
     else:
       await context.reply("This movie is already on the queue")
@@ -80,7 +80,7 @@ async def pick_random(context):
 @bot.command(name="watched", help="$watched queue_position to mark a movie as watched")
 async def mark_movie(context, movie_position):
   movie_position = int(movie_position)
-  current_queue = helpers.get_movie_queue(db, context.guild.id)
+  current_queue = helpers.get_movie_queue(db, context.guild.id, False)
   if current_queue.Movies[movie_position - 1].added_by == context.message.author.id or helpers.check_permission(context):
     db.collection("MovieQueue").document(current_queue.Movies[movie_position - 1].id).set({'viewed': True}, merge=True)
 
@@ -103,7 +103,7 @@ async def remove_movie(context, movie_position):
 @bot.command(name="nominate", help="$nominate queue_position to nominate a movie of your choice.")
 async def nominate_movie(context, movie_position):
   movie_position = int(movie_position)
-  current_queue = helpers.get_movie_queue(db, context.guild.id)
+  current_queue = helpers.get_movie_queue(db, context.guild.id, False)
   movie = current_queue.Movies[movie_position - 1]
 
   await context.reply(f"{movie.title} Rating: {movie.rating} has been nominated. Please vote with :thumbsup: or :thumbsdown:")
@@ -112,7 +112,7 @@ async def nominate_movie(context, movie_position):
 @bot.command(name="link", help="$link queue_position to get the link for the movie at that position in queue.")
 async def get_link(context, movie_position):
   movie_position = int(movie_position)
-  current_queue = helpers.get_movie_queue(db, context.guild.id)
+  current_queue = helpers.get_movie_queue(db, context.guild.id, False)
   movie = current_queue.Movies[movie_position - 1]
   print(movie.__dict__)
   await context.reply(f"{movie.url}")
