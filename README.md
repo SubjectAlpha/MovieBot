@@ -1,5 +1,6 @@
 
 # MovieBot
+[Official Discord](https://discord.com/invite/W92teK5Q4z)
 A more comprehensive way to manage a movie queue for your Discord server.
 
 [Invite Me!](https://discord.com/oauth2/authorize?client_id=858789129848225792&permissions=27712&scope=bot)
