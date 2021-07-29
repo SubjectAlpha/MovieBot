@@ -13,6 +13,7 @@ General Users:
  - ```$nominate queue_position``` - Nominate a movie for watching
  - ```$watched queue_position``` - Mark a movie from the queue as watched
  - ```$remove queue_position``` - Remove a movie from the queue
+ - ```$info queue_position``` - Get title, rating, added by, and url for movie.
  - ```$link queue_position``` - Get the link for the movie
  - ```$random``` - Randomly choose a movie from the queue to watch
 ---

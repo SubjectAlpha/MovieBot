@@ -117,6 +117,14 @@ async def get_link(context, movie_position):
   print(movie.__dict__)
   await context.reply(f"{movie.url}")
 
+@bot.command(name="info", help="$info queue_position to get information on that movie.")
+async def get_info(context, movie_position):
+  movie_position = int(movie_position)
+  current_queue = helpers.get_movie_queue(db, context.guild.id, False)
+  movie = current_queue.Movies[movie_position - 1]
+  message = f"Title: {movie.title}\nIMDb Rating: {movie.rating}\nAdded by: <@{movie.added_by}>\nDate Added: {movie.date_added}\nURL: {movie.url}"
+  await context.reply(message)
+
 @bot.command(name="top")
 async def list_top_rated(context, amount=10):
   current_queue = helpers.get_movie_queue(db, context.guild.id)
