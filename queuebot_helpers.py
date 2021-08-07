@@ -21,6 +21,7 @@ def get_movie_queue(db_ref, server_id, viewed=True):
 
   queue = queuebot.Queue()
   queue.from_collection(docs)
+  queue.Movies.sort(key = lambda x: x.viewed, reverse=False)
   return queue
 
 def get_movie_rating(db_ref, server_id, movie_doc_id):

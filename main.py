@@ -59,8 +59,6 @@ async def get_all_movies_message(context):
   pos = 1
   await context.message.add_reaction("👌")
 
-  current_queue.Movies.sort(key = lambda x: x.viewed, reverse=False)
-
   for movie in current_queue.Movies:
     queue_msg += f"{movie.title} - {movie.rating} - Viewed: {movie.viewed} - Position: {str(pos)}\n"
     pos += 1
@@ -91,7 +89,7 @@ async def mark_movie(context, movie_position):
 @bot.command(name="remove")
 async def remove_movie(context, movie_position):
   movie_position = int(movie_position)
-  current_queue = helpers.get_movie_queue(db, context.guild.id, True)
+  current_queue = helpers.get_movie_queue(db, context.guild.id)
   if current_queue.Movies[movie_position - 1].added_by == context.message.author.id or helpers.check_permission(context):
     db.collection("MovieQueue").document(current_queue.Movies[movie_position - 1].id).delete()
 
@@ -120,7 +118,7 @@ async def get_link(context, movie_position):
 @bot.command(name="info", help="$info queue_position to get information on that movie.")
 async def get_info(context, movie_position):
   movie_position = int(movie_position)
-  current_queue = helpers.get_movie_queue(db, context.guild.id, False)
+  current_queue = helpers.get_movie_queue(db, context.guild.id)
   movie = current_queue.Movies[movie_position - 1]
   message = f"Title: {movie.title}\nIMDb Rating: {movie.rating}\nAdded by: <@{movie.added_by}>\nDate Added: {movie.date_added}\nURL: {movie.url}"
   await context.reply(message)
